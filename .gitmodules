@@ -1,0 +1,3 @@
+[submodule "depend/asio/asio"]
+	path = depend/asio/asio
+	url = https://github.com/chriskohlhoff/asio
