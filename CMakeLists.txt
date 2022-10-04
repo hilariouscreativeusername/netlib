@@ -13,3 +13,11 @@ add_subdirectory(test/client)
 
 add_subdirectory(depend/asio)
 target_link_libraries(${PROJECT_NAME} INTERFACE asio)
+
+# Generate schemes on Xcode
+if (PROJECT_IS_TOP_LEVEL)
+  if(APPLE)
+    set_target_properties(NetLibClientTest PROPERTIES XCODE_GENERATE_SCHEME TRUE XCODE_SCHEME_WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_target_properties(NetLibServerTest PROPERTIES XCODE_GENERATE_SCHEME TRUE XCODE_SCHEME_WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  endif()
+endif()
