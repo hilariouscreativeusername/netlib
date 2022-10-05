@@ -6,7 +6,6 @@
 #include <deque>
 #include <optional>
 #include <vector>
-#include <iostream>
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -26,6 +25,17 @@
 #include <asio.hpp>
 #include <asio/ts/buffer.hpp>
 #include <asio/ts/internet.hpp>
+
+#ifndef NDEBUG
+#define NETLIB_DEBUG_MODE
+#endif
+
+#ifndef NETLIB_DEBUG_MODE
+#define NETLIB_DEBUG_PRINT(...)
+#else
+#include <cstdio>
+#define NETLIB_DEBUG_PRINT(...) printf(__VA_ARGS__)
+#endif
 
 namespace NetLib {
 
@@ -349,7 +359,7 @@ private:
 				// for now simply assume the connection has died by closing the
 				// socket. When a future attempt to write to this client fails due
 				// to the closed socket, it will be tidied up.
-				std::cout << "[" << id_ << "] Write Header Fail.\n";
+				NETLIB_DEBUG_PRINT("Header write fail (ID: %u)\n", id_);
 				socket_.close();
 			}
 		});
@@ -373,7 +383,7 @@ private:
 			}
 			else {
 				// Sending failed, see WriteHeader() equivalent for description :P
-				std::cout << "[" << id_ << "] Write Body Fail.\n";
+				NETLIB_DEBUG_PRINT("Body write fail (ID: %u)\n", id_);
 				socket_.close();
 			}
 		});
@@ -405,7 +415,7 @@ private:
 			else {
 				// Reading form the client went wrong, most likely a disconnect
 				// has occurred. Close the socket and let the system tidy it up later.
-				std::cout << "[" << id_ << "] Read Header Fail.\n";
+				NETLIB_DEBUG_PRINT("Header read fail (ID: %u)\n", id_);
 				socket_.close();
 			}
 		});
@@ -423,7 +433,7 @@ private:
 				AddToIncomingMessageQueue();
 			}
 			else {
-				std::cout << "[" << id_ << "] Read Body Fail.\n";
+				NETLIB_DEBUG_PRINT("Body read fail (ID: %u)\n", id_);
 				socket_.close();
 			}
 		});
@@ -463,7 +473,7 @@ private:
 					// Compare sent data to actual solution
 					if (handshake_in_ == handshake_check_) {
 						// Client has provided valid solution, so allow it to connect properly
-						std::cout << "Client Validated" << std::endl;
+						NETLIB_DEBUG_PRINT("Client validated\n");
 						server->OnClientValidated(this->shared_from_this());
 
 						// Sit waiting to receive data now
@@ -471,7 +481,7 @@ private:
 					}
 					else {
 						// Client gave incorrect data, so disconnect
-						std::cout << "Client Disconnected (Fail Validation)" << std::endl;
+						NETLIB_DEBUG_PRINT("Client disconnected (validation failed)\n");
 						socket_.close();
 					}
 				}
@@ -485,7 +495,7 @@ private:
 			}
 			else {
 				// Some bigger failure occured
-				std::cout << "Client Disconnected (ReadValidation)" << std::endl;
+				NETLIB_DEBUG_PRINT("Client disconnected (read validation failed)\n");
 				socket_.close();
 			}
 		});
@@ -563,7 +573,8 @@ public:
 			context_thread_ = std::thread([this]() { context_.run(); });
 		}
 		catch (std::exception& e) {
-			std::cerr << "Client Exception: " << e.what() << "\n";
+			(void)e;
+			NETLIB_DEBUG_PRINT("Client exception: %s\n", e.what());
 			return false;
 		}
 		return true;
@@ -643,12 +654,13 @@ public:
 			context_thread_ = std::thread([this]() { context_.run(); });
 		}
 		catch (std::exception& e) {
+			(void)e;
 			// Something prohibited the server from listening
-			std::cerr << "[SERVER] Exception: " << e.what() << "\n";
+			NETLIB_DEBUG_PRINT("Server exception: %s\n", e.what());
 			return false;
 		}
 
-		std::cout << "[SERVER] Started!\n";
+		NETLIB_DEBUG_PRINT("Server started\n");
 		return true;
 	}
 
@@ -660,7 +672,7 @@ public:
 			context_thread_.join();
     }
 
-		std::cout << "[SERVER] Stopped!\n";
+		NETLIB_DEBUG_PRINT("Server stopped\n");
 	}
 
 	// ASYNC - Instruct asio to wait for connection
@@ -672,7 +684,7 @@ public:
 			// Triggered by incoming connection request
 			if (!ec) {
 				// Display some useful(?) information
-				std::cout << "[SERVER] New Connection: " << socket.remote_endpoint() << "\n";
+				NETLIB_DEBUG_PRINT("Server reports new connection: %s\n", socket.remote_endpoint().address().to_string().c_str());
 
 				// Create a new connection to handle this client
 				std::shared_ptr<Connection<T>> newconn = std::make_shared<Connection<T>>(Connection<T>::Owner::kServer, context_, std::move(socket), in_queue_);
@@ -685,10 +697,10 @@ public:
 					// And very important! Issue a task to the connection's asio context to sit and wait for bytes to arrive!
 					connections_.back()->ConnectToClient(this, id_counter_++);
 
-					std::cout << "[" << connections_.back()->GetId() << "] Connection Approved\n";
+					NETLIB_DEBUG_PRINT("Connection approved: %u\n", connections_.back()->GetId());
 				}
 				else {
-					std::cout << "[-----] Connection Denied\n";
+					NETLIB_DEBUG_PRINT("Server denied connection\n");
 
 					// Connection will go out of scope with no pending tasks, so will
 					// get destroyed automagically due to the wonder of smart pointers
@@ -696,7 +708,7 @@ public:
 			}
 			else {
 				// Error has occurred during acceptance
-				std::cout << "[SERVER] New Connection Error: " << ec.message() << "\n";
+				NETLIB_DEBUG_PRINT("Server reports connection error: %s\n", ec.message().c_str());
 			}
 
 			// Prime the asio context with more work - again simply wait for
