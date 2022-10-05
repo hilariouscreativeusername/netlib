@@ -8,8 +8,10 @@ add_library(${PROJECT_NAME} INTERFACE ${NETLIB_INCLUDE_FILES})
 target_include_directories(${PROJECT_NAME} INTERFACE include)
 target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_17)
 
-add_subdirectory(test/server)
-add_subdirectory(test/client)
+if (PROJECT_IS_TOP_LEVEL)
+  add_subdirectory(test/server)
+  add_subdirectory(test/client)
+endif()
 
 add_subdirectory(depend/asio)
 target_link_libraries(${PROJECT_NAME} INTERFACE asio)
