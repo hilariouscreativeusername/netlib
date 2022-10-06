@@ -240,9 +240,10 @@ public:
 public:
 /* When a connection is created, we perform the initial handshake
  */
-	Connection(Owner parent, asio::io_context& context, asio::ip::tcp::socket socket, ThreadSafeQueue<OwnedMessage<T>>& in_queue)
+	Connection(Owner parent, asio::io_context& context, asio::ip::tcp::socket socket, ThreadSafeQueue<OwnedMessage<T>>& in_queue, uint32_t id)
       : context_(context), socket_(std::move(socket)), in_queue_(in_queue) {
 		owner_ = parent;
+		id_ = id;
 
 		// Construct validation check data
 		if (owner_ == Owner::kServer) {
@@ -269,11 +270,9 @@ public:
 	}
 
 public:
-	void ConnectToClient(Server<T>* server, uint32_t uid = 0) {
+	void ConnectToClient(Server<T>* server) {
 		if (owner_ == Owner::kServer) {
 			if (socket_.is_open()) {
-				id_ = uid;
-
 				// A client has attempted to connect to the server, but we wish
 				// the client to first validate itself, so first write out the
 				// handshake data to be validated
@@ -563,8 +562,8 @@ public:
 			asio::ip::tcp::resolver resolver(context_);
 			asio::ip::tcp::resolver::results_type endpoints = resolver.resolve(host, std::to_string(port));
 
-			// Create connection
-			connection_ = std::make_unique<Connection<T>>(Connection<T>::Owner::kClient, context_, asio::ip::tcp::socket(context_), in_queue_);
+			// Create connection - no need to assign an ID as client only ever has one connection
+			connection_ = std::make_unique<Connection<T>>(Connection<T>::Owner::kClient, context_, asio::ip::tcp::socket(context_), in_queue_, 0);
 
 			// Tell the connection object to connect to server
 			connection_->ConnectToServer(endpoints);
@@ -687,7 +686,7 @@ public:
 				NETLIB_DEBUG_PRINT("Server reports new connection: %s\n", socket.remote_endpoint().address().to_string().c_str());
 
 				// Create a new connection to handle this client
-				std::shared_ptr<Connection<T>> newconn = std::make_shared<Connection<T>>(Connection<T>::Owner::kServer, context_, std::move(socket), in_queue_);
+				std::shared_ptr<Connection<T>> newconn = std::make_shared<Connection<T>>(Connection<T>::Owner::kServer, context_, std::move(socket), in_queue_, id_counter_++);
 
 				// Give the user server a chance to deny connection
 				if (OnClientConnect(newconn)) {
@@ -695,7 +694,7 @@ public:
 					connections_.push_back(std::move(newconn));
 
 					// And very important! Issue a task to the connection's asio context to sit and wait for bytes to arrive!
-					connections_.back()->ConnectToClient(this, id_counter_++);
+					connections_.back()->ConnectToClient(this);
 
 					NETLIB_DEBUG_PRINT("Connection approved: %u\n", connections_.back()->GetId());
 				}
