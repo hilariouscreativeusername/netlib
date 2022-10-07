@@ -294,6 +294,9 @@ public:
 					// First thing server will do is send packet to be validated, so wait for that and respond
 					ReadValidation();
 				}
+				else {
+					NETLIB_DEBUG_PRINT("Network error: %s\n", ec.message().c_str());
+				}
 			});
 		}
 	}
@@ -358,7 +361,7 @@ private:
 				// for now simply assume the connection has died by closing the
 				// socket. When a future attempt to write to this client fails due
 				// to the closed socket, it will be tidied up.
-				NETLIB_DEBUG_PRINT("Header write fail (ID: %u)\n", id_);
+				NETLIB_DEBUG_PRINT("Header write fail (ID: %u): %s\n", id_, ec.message().c_str());
 				socket_.close();
 			}
 		});
@@ -382,7 +385,7 @@ private:
 			}
 			else {
 				// Sending failed, see WriteHeader() equivalent for description :P
-				NETLIB_DEBUG_PRINT("Body write fail (ID: %u)\n", id_);
+				NETLIB_DEBUG_PRINT("Body write fail (ID: %u): %s\n", id_, ec.message().c_str());
 				socket_.close();
 			}
 		});
@@ -414,7 +417,7 @@ private:
 			else {
 				// Reading form the client went wrong, most likely a disconnect
 				// has occurred. Close the socket and let the system tidy it up later.
-				NETLIB_DEBUG_PRINT("Header read fail (ID: %u)\n", id_);
+				NETLIB_DEBUG_PRINT("Header read fail (ID: %u): %s\n", id_, ec.message().c_str());
 				socket_.close();
 			}
 		});
@@ -432,7 +435,7 @@ private:
 				AddToIncomingMessageQueue();
 			}
 			else {
-				NETLIB_DEBUG_PRINT("Body read fail (ID: %u)\n", id_);
+				NETLIB_DEBUG_PRINT("Body read fail (ID: %u): %s\n", id_, ec.message().c_str());
 				socket_.close();
 			}
 		});
@@ -458,6 +461,7 @@ private:
 				}
 			}
 			else {
+				NETLIB_DEBUG_PRINT("Network error: %s\n", ec.message().c_str());
 				socket_.close();
 			}
 		});
@@ -494,7 +498,7 @@ private:
 			}
 			else {
 				// Some bigger failure occured
-				NETLIB_DEBUG_PRINT("Client disconnected (read validation failed)\n");
+				NETLIB_DEBUG_PRINT("Client disconnected (read validation failed): %s\n", ec.message().c_str());
 				socket_.close();
 			}
 		});
