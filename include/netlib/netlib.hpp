@@ -673,7 +673,7 @@ public:
 			if (!ec) {
 				// Create a new connection to handle this client
 				std::shared_ptr<Connection<T>> newconn = std::make_shared<Connection<T>>(Connection<T>::Owner::kServer, context_,
-					  std::move(socket), in_queue_, id_counter_++, [](const std::string& what) { OnServerError(what); });
+					  std::move(socket), in_queue_, id_counter_++, [this](const std::string& what) { OnServerError(what); });
 
 				// Give the user server a chance to deny connection
 				if (OnClientConnect(newconn)) {
